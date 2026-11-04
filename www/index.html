@@ -1,0 +1,19 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AMARA AI</title><style>
+:root{--n:#1b1464;--n2:#2a2090;--s:#ffcf3f;--c:#ff6b6b;--m:#5be3b0;--t:#fff8e7}
+*{box-sizing:border-box}body{margin:0;background:var(--n);color:var(--t);font:17px/1.4 "Baloo 2","Comic Neue",ui-rounded,system-ui,sans-serif;padding:env(safe-area-inset-top) 18px 40px}
+h1{font-size:44px;margin:18px 0 0;letter-spacing:1px;color:var(--s)}h1 b{color:var(--c)}
+.sub{margin:0 0 18px;opacity:.85}label{display:block;margin:14px 0 6px;font-weight:700}
+textarea,select{width:100%;padding:14px;border-radius:18px;border:3px solid var(--n2);background:var(--n2);color:var(--t);font:inherit}
+textarea:focus,select:focus,button:focus-visible{outline:3px solid var(--m)}textarea{min-height:110px}
+.row{display:flex;gap:10px}.row>div{flex:1}
+button{width:100%;margin-top:22px;padding:16px;border:0;border-radius:999px;background:var(--s);color:var(--n);font:800 20px inherit;font-family:inherit}
+button.b{background:var(--m)}button:disabled{opacity:.5}
+#prog{display:none;margin-top:22px}#bar{height:14px;border-radius:9px;background:var(--n2);overflow:hidden}#bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--c),var(--s));transition:width .3s}
+#log{margin-top:8px;min-height:24px}canvas,video{width:100%;margin-top:18px;border-radius:22px;background:#000;max-height:70vh;object-fit:contain}
+#res{display:none}</style></head><body>
+<h1>AMARA <b>AI</b></h1><p class="sub">Ton idée devient un dessin animé ou une comptine.</p>
+<label for="idea">Ton idée ou ton scénario</label>
+<textarea id="idea" placeholder="Ex. : un petit dragon qui a peur du noir et trouve une luciole amie"></textarea>
+<div class="row"><div><label
