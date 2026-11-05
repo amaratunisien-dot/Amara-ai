@@ -1,0 +1,79 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AMARA AI</title><style>
+:root{--n:#1b1464;--n2:#2a2090;--s:#ffcf3f;--c:#ff6b6b;--m:#5be3b0;--t:#fff8e7}
+*{box-sizing:border-box}body{margin:0;background:var(--n);color:var(--t);font:17px/1.4 "Baloo 2","Comic Neue",ui-rounded,system-ui,sans-serif;padding:env(safe-area-inset-top) 18px 40px}
+h1{font-size:44px;margin:18px 0 0;letter-spacing:1px;color:var(--s)}h1 b{color:var(--c)}
+.sub{margin:0 0 18px;opacity:.85}label{display:block;margin:14px 0 6px;font-weight:700}
+textarea,select{width:100%;padding:14px;border-radius:18px;border:3px solid var(--n2);background:var(--n2);color:var(--t);font:inherit}
+textarea:focus,select:focus,button:focus-visible{outline:3px solid var(--m)}textarea{min-height:110px}
+.row{display:flex;gap:10px}.row>div{flex:1}
+button{width:100%;margin-top:22px;padding:16px;border:0;border-radius:999px;background:var(--s);color:var(--n);font:800 20px inherit;font-family:inherit}
+button.b{background:var(--m)}button:disabled{opacity:.5}
+#prog{display:none;margin-top:22px}#bar{height:14px;border-radius:9px;background:var(--n2);overflow:hidden}#bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--c),var(--s));transition:width .3s}
+#log{margin-top:8px;min-height:24px}canvas,video{width:100%;margin-top:18px;border-radius:22px;background:#000;max-height:70vh;object-fit:contain}
+#res{display:none}</style></head><body>
+<h1>AMARA <b>AI</b></h1><p class="sub">Ton idée devient un dessin animé ou une comptine.</p>
+<label for="idea">Ton idée ou ton scénario</label>
+<textarea id="idea" placeholder="Ex. : un petit dragon qui a peur du noir et trouve une luciole amie"></textarea>
+<div class="row"><div><label for="type">Genre</label><select id="type"><option value="dessin animé">Dessin animé</option><option value="comptine chantée pour enfants">Comptine</option><option value="film d’animation avec plusieurs scènes cohérentes">Film</option></select></div>
+<div><label for="dur">Durée</label><select id="dur"><option value="0.5">30 s (test)</option><option value="2" selected>2 min</option><option value="5">5 min</option><option value="10">10 min</option><option value="20">20 min</option></select></div></div>
+<label for="fmt">Format</label><select id="fmt"><option value="9:16">Vertical 9:16</option><option value="16:9">Horizontal 16:9</option></select>
+<button id="go">Créer ma vidéo</button>
+<div id="prog"><div id="bar"><i></i></div><div id="log"></div></div>
+<canvas id="cv" width="720" height="1280" style="display:none"></canvas>
+<div id="res"><video id="vid" controls playsinline></video><button class="b" id="save">Enregistrer sur le téléphone</button></div>
+<script>
+const $=s=>document.querySelector(s),sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const log=(t,p)=>{$('#log').textContent=t;if(p!=null)$('#bar i').style.width=Math.round(p*100)+'%'};
+async function retry(f,n=4){for(let i=0;i<n;i++){try{return await f()}catch(e){await sleep(2500*(i+1))}}throw Error('Service IA gratuit occupé, réessaie dans une minute.')}
+const llm=p=>retry(async()=>{const r=await fetch('https://text.pollinations.ai/openai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'openai',response_format:{type:'json_object'},seed:Math.floor(Math.random()*1e6),messages:[{role:'user',content:p}]})});return JSON.parse((await r.json()).choices[0].message.content)});
+const VOIX=['nova','shimmer','echo','onyx','fable','alloy'];
+async function build(){
+ const idea=$('#idea').value.trim();if(!idea)return alert('Écris d’abord une idée !');
+ const type=$('#type').value,fmt=$('#fmt').value,min=+$('#dur').value,N=Math.max(4,Math.round(min*60/8));
+ const W=fmt=='9:16'?720:1280,H=fmt=='9:16'?1280:720,cv=$('#cv');cv.width=W;cv.height=H;
+ const ac=new AudioContext();await ac.resume();
+ $('#go').disabled=true;$('#prog').style.display='block';$('#res').style.display='none';
+ try{
+ log('Écriture de l’histoire…',.02);
+ const plan=await llm(`Tu es scénariste français de ${type} pour enfants. Idée : ${idea}. Réponds en JSON : {"titre":"","synopsis":"10 phrases avec début, milieu et fin","personnages":[{"nom":"","apparence_en_anglais":"description visuelle courte et fixe","voix":"une parmi ${VOIX.join('|')}"}]} (2 à 4 personnages).`);
+ const look=plan.personnages.map(p=>p.apparence_en_anglais).join('; ').slice(0,350);
+ const scenes=[];
+ while(scenes.length<N){const a=scenes.length,b=Math.min(N,a+8);
+  log(`Scénario : scènes ${a+1} à ${b} sur ${N}…`,.05+.1*a/N);
+  const r=await llm(`Histoire : ${plan.titre}. ${plan.synopsis}. Personnages : ${JSON.stringify(plan.personnages.map(p=>p.nom))}. Écris les scènes ${a+1} à ${b} sur ${N} (la fin est à la scène ${N}). JSON : {"scenes":[{"narration":"1 à 2 phrases en français, ${type.includes('comptine')?'en rimes chantées':'dialogue ou narration'}","perso":"nom ou narrateur","image":"visual description in English"}]} avec exactement ${b-a} scènes. Scènes précédentes : ${scenes.slice(-2).map(s=>s.narration).join(' ')}`);
+  scenes.push(...(r.scenes||[]).slice(0,b-a));if(!r.scenes?.length)throw Error('Scénario vide')}
+ for(let i=0;i<scenes.length;i++){const s=scenes[i];log(`Images et voix : scène ${i+1} sur ${scenes.length}…`,.15+.55*i/scenes.length);
+  const p=plan.personnages.find(x=>x.nom==s.perso);const v=p&&VOIX.includes(p.voix)?p.voix:'fable';
+  const url=`https://image.pollinations.ai/prompt/${encodeURIComponent("cute children's 3D cartoon, vivid colors, "+look+", "+s.image)}?width=${W>H?1024:576}&height=${W>H?576:1024}&seed=7&nologo=true`;
+  s.img=await retry(async()=>createImageBitmap(await(await fetch(url)).blob()));
+  s.aud=await retry(async()=>ac.decodeAudioData(await(await fetch(`https://text.pollinations.ai/${encodeURIComponent(s.narration)}?model=openai-audio&voice=${v}`)).arrayBuffer()));}
+ await render(ac,scenes,plan.titre,cv,W,H,type.includes('comptine'));
+ }catch(e){log('Oups : '+e.message)}finally{$('#go').disabled=false}}
+async function render(ac,scenes,titre,cv,W,H,sing){
+ const x=cv.getContext('2d'),dest=ac.createMediaStreamDestination(),mus=ac.createGain();mus.gain.value=sing?.9:.6;mus.connect(dest);mus.connect(ac.destination);
+ const mime=['video/mp4;codecs=avc1,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm'].find(m=>MediaRecorder.isTypeSupported(m));
+ const rec=new MediaRecorder(new MediaStream([...cv.captureStream(30).getVideoTracks(),...dest.stream.getAudioTracks()]),{mimeType:mime,videoBitsPerSecond:3e6}),ch=[];
+ rec.ondataavailable=e=>ch.push(e.data);rec.start(1000);
+ const note=(f,t,d,g,ty='sine')=>{const o=ac.createOscillator(),a=ac.createGain();o.type=ty;o.frequency.value=f;a.gain.setValueAtTime(g,t);a.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(a);a.connect(mus);o.start(t);o.stop(t+d)};
+ const gam=[262,294,330,392,440,523,587];let k=0;
+ const mt=setInterval(()=>{const t=ac.currentTime+.05;note(gam[(k*3+(k>>2))%7],t,.6,.05);if(k%4==0)note(gam[k%3]/2,t,1.4,.07,'triangle');k++},sing?380:520);
+ for(let i=0;i<scenes.length;i++){const s=scenes[i],dur=Math.max(4,s.aud.duration+.6),t0=performance.now();log(`Montage en direct : scène ${i+1} sur ${scenes.length}`,.7+.3*i/scenes.length);
+  const src=ac.createBufferSource();src.buffer=s.aud;src.connect(dest);src.connect(ac.destination);src.start(ac.currentTime+.3);
+  const T=ac.currentTime;note(880,T,.3,.12);note(1320,T+.1,.3,.1);
+  await new Promise(res=>{(function f(){const e=(performance.now()-t0)/1000,p=Math.min(1,e/dur),z=1+.14*(i%2?1-p:p),w=s.img.width,h=s.img.height,sc=Math.max(W/w,H/h)*z;
+   x.drawImage(s.img,(W-w*sc)/2+Math.sin(p*3)*14,(H-h*sc)/2,w*sc,h*sc);
+   const fs=W>H?36:34;x.font=`800 ${fs}px sans-serif`;x.textAlign='center';x.lineJoin='round';x.lineWidth=9;x.strokeStyle='#1b1464';x.fillStyle='#fff8e7';
+   const words=(i==0&&e<2.5?titre:s.narration).split(' ');let L=[],c='';for(const q of words){if(x.measureText(c+q).width>W-80){L.push(c);c=''}c+=q+' '}L.push(c);
+   L.forEach((l,j)=>{const y=H-70-(L.length-1-j)*(fs+8);x.strokeText(l,W/2,y);x.fillText(l,W/2,y)});
+   p<1?requestAnimationFrame(f):res()})()})}
+ clearInterval(mt);await sleep(500);rec.stop();await new Promise(r=>rec.onstop=r);
+ const blob=new Blob(ch,{type:mime.split(';')[0]});window.OUT={blob,ext:mime.includes('mp4')?'mp4':'webm'};
+ $('#vid').src=URL.createObjectURL(blob);$('#res').style.display='block';cv.style.display='none';log('Ta vidéo est prête !',1)}
+$('#save').onclick=async()=>{const{blob,ext}=window.OUT,name=`AMARA-${Date.now()}.${ext}`;
+ try{const d=await new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result.split(',')[1]);f.readAsDataURL(blob)});
+  await Capacitor.Plugins.Filesystem.writeFile({path:'AMARA/'+name,data:d,directory:'DOCUMENTS',recursive:true});alert('Enregistrée dans Documents/AMARA/'+name)}
+ catch(e){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click()}};
+$('#go').onclick=build;
+</script></body></html>
